@@ -1,8 +1,10 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, CreditCard, Upload, Wallet, Moon, Sun } from 'lucide-react';
+import { LayoutDashboard, CreditCard, Upload, Wallet, Moon, Sun, LogOut } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useTheme } from "./theme-provider";
+import { supabase } from '../lib/supabase';
 
+// --- Helper: Navigation Link Component ---
 function NavLink({ to, icon: Icon, label, mobile = false }) {
   const location = useLocation();
   const isActive = location.pathname === to;
@@ -17,7 +19,6 @@ function NavLink({ to, icon: Icon, label, mobile = false }) {
         }`}>
           <Icon size={20} />
         </div>
-        {/* Optional: Hide labels on very small screens if needed, but usually helpful */}
         <span className={`text-[10px] font-medium transition-colors ${
           isActive ? 'text-foreground' : 'text-muted-foreground'
         }`}>
@@ -48,6 +49,11 @@ function NavLink({ to, icon: Icon, label, mobile = false }) {
 export default function Navbar() {
   const { theme, setTheme } = useTheme();
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    // ProtectedRoute in App.jsx will handle the redirect to /login automatically
+  };
+
   const ThemeToggle = () => (
     <Button
       variant="ghost"
@@ -64,7 +70,6 @@ export default function Navbar() {
   return (
     <>
       {/* --- TOP NAVBAR (Universal) --- */}
-      {/* On Mobile: Just Logo + Theme. On Desktop: Logo + Links + Theme */}
       <nav className="w-full bg-background/80 backdrop-blur-md border-b border-border sticky top-0 z-40 transition-colors duration-300">
         <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
@@ -89,10 +94,31 @@ export default function Navbar() {
               <NavLink to="/upload" icon={Upload} label="Import CSV" />
             </div>
 
-            {/* Right Section: Theme Toggle + Profile */}
-            <div className="flex items-center gap-3 pl-4 sm:border-l border-border ml-2">
+            {/* Right Section: Theme + Sign Out + Avatars */}
+            <div className="flex items-center gap-2 pl-4 sm:border-l border-border ml-2">
                <ThemeToggle />
-               <div className="hidden sm:flex gap-3">
+               
+               {/* Mobile Sign Out (Icon Only) */}
+               <Button 
+                 variant="ghost" 
+                 size="icon" 
+                 onClick={handleSignOut} 
+                 className="sm:hidden text-muted-foreground hover:text-destructive"
+               >
+                 <LogOut className="h-[1.2rem] w-[1.2rem]" />
+               </Button>
+
+               {/* Desktop Sign Out (Text Button) */}
+               <Button 
+                 variant="ghost" 
+                 className="hidden sm:flex text-xs text-muted-foreground hover:text-destructive"
+                 onClick={handleSignOut}
+               >
+                 Sign Out
+               </Button>
+
+               {/* Desktop Avatars */}
+               <div className="hidden sm:flex gap-3 ml-2">
                  <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-700 dark:text-blue-300 font-bold text-xs ring-2 ring-background">R</div>
                  <div className="h-8 w-8 rounded-full bg-pink-100 dark:bg-pink-900 flex items-center justify-center text-pink-700 dark:text-pink-300 font-bold text-xs ring-2 ring-background">S</div>
                </div>
