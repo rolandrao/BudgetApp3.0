@@ -1,8 +1,13 @@
+import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, CreditCard, Upload, Wallet, Moon, Sun, LogOut } from 'lucide-react';
+import { LayoutDashboard, CreditCard, Upload, Wallet, Moon, Sun, LogOut, PieChart, Target, Settings } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useTheme } from "./theme-provider";
 import { supabase } from '../lib/supabase';
+
+// --- CONFIGURATION: UPDATE THESE EMAILS ---
+const ROLAND_EMAIL = "rolandrao@gmail.com"; 
+const SARAH_EMAIL = "sarah.email@gmail.com"; 
 
 // --- Helper: Navigation Link Component ---
 function NavLink({ to, icon: Icon, label, mobile = false }) {
@@ -48,10 +53,24 @@ function NavLink({ to, icon: Icon, label, mobile = false }) {
 
 export default function Navbar() {
   const { theme, setTheme } = useTheme();
+  const [userEmail, setUserEmail] = useState(null);
+
+  useEffect(() => {
+    // 1. Get initial user
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setUserEmail(user.email);
+    });
+
+    // 2. Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserEmail(session?.user?.email || null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    // ProtectedRoute in App.jsx will handle the redirect to /login automatically
   };
 
   const ThemeToggle = () => (
@@ -66,6 +85,10 @@ export default function Navbar() {
       <span className="sr-only">Toggle theme</span>
     </Button>
   );
+
+  // Helper to check identity
+  const isRoland = userEmail && userEmail.toLowerCase() === ROLAND_EMAIL.toLowerCase();
+  const isSarah = userEmail && userEmail.toLowerCase() === SARAH_EMAIL.toLowerCase();
 
   return (
     <>
@@ -87,15 +110,25 @@ export default function Navbar() {
               </span>
             </div>
 
-            {/* Desktop Navigation (Hidden on Mobile) */}
-            <div className="hidden sm:flex items-center space-x-2">
+            {/* Desktop Navigation (Center) */}
+            <div className="hidden md:flex items-center space-x-2">
               <NavLink to="/" icon={LayoutDashboard} label="Dashboard" />
+              <NavLink to="/budget" icon={PieChart} label="Budget" />
+              <NavLink to="/goals" icon={Target} label="Goals" />
               <NavLink to="/transactions" icon={CreditCard} label="Transactions" />
-              <NavLink to="/upload" icon={Upload} label="Import CSV" />
+              <NavLink to="/upload" icon={Upload} label="Import" />
             </div>
 
-            {/* Right Section: Theme + Sign Out + Avatars */}
-            <div className="flex items-center gap-2 pl-4 sm:border-l border-border ml-2">
+            {/* Right Section: Settings + Theme + Sign Out */}
+            <div className="flex items-center gap-1 pl-2 sm:border-l border-border ml-2">
+               
+               {/* NEW: Settings Link (Visible on Mobile & Desktop) */}
+               <Link to="/settings">
+                 <Button variant="ghost" size="icon" className="rounded-full hover:bg-muted text-muted-foreground">
+                    <Settings className="h-[1.2rem] w-[1.2rem]" />
+                 </Button>
+               </Link>
+
                <ThemeToggle />
                
                {/* Mobile Sign Out (Icon Only) */}
@@ -118,9 +151,28 @@ export default function Navbar() {
                </Button>
 
                {/* Desktop Avatars */}
-               <div className="hidden sm:flex gap-3 ml-2">
-                 <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-700 dark:text-blue-300 font-bold text-xs ring-2 ring-background">R</div>
-                 <div className="h-8 w-8 rounded-full bg-pink-100 dark:bg-pink-900 flex items-center justify-center text-pink-700 dark:text-pink-300 font-bold text-xs ring-2 ring-background">S</div>
+               <div className="hidden sm:flex gap-2 ml-2 items-center">
+                 {/* Roland Badge */}
+                 <div className={`
+                    h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300
+                    ${isRoland 
+                        ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 ring-2 ring-blue-500 shadow-md scale-110' 
+                        : 'bg-muted text-muted-foreground opacity-40 grayscale'
+                    }
+                 `}>
+                    R
+                 </div>
+
+                 {/* Sarah Badge */}
+                 <div className={`
+                    h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300
+                    ${isSarah 
+                        ? 'bg-pink-100 dark:bg-pink-900 text-pink-700 dark:text-pink-300 ring-2 ring-pink-500 shadow-md scale-110' 
+                        : 'bg-muted text-muted-foreground opacity-40 grayscale'
+                    }
+                 `}>
+                    S
+                 </div>
                </div>
             </div>
 
@@ -128,19 +180,21 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* --- MOBILE BOTTOM FLOATING NAVBAR (Liquid Glass) --- */}
-      <div className="fixed bottom-6 left-4 right-4 sm:hidden z-50">
+      {/* --- MOBILE BOTTOM FLOATING NAVBAR --- */}
+      {/* Kept clean with only the 4 most frequent actions */}
+      <div className="fixed bottom-6 left-4 right-4 md:hidden z-50">
         <div className="
           flex items-center justify-around h-16 px-2
-          bg-white/80 dark:bg-black/60 
+          bg-white/90 dark:bg-zinc-900/90 
           backdrop-blur-xl saturate-150
           border border-white/20 dark:border-white/10
           rounded-2xl shadow-2xl
           ring-1 ring-black/5 dark:ring-white/5
         ">
           <NavLink to="/" icon={LayoutDashboard} label="Home" mobile />
-          <NavLink to="/transactions" icon={CreditCard} label="Transact" mobile />
-          <NavLink to="/upload" icon={Upload} label="Import" mobile />
+          <NavLink to="/budget" icon={PieChart} label="Budget" mobile />
+          <NavLink to="/goals" icon={Target} label="Goals" mobile />
+          <NavLink to="/transactions" icon={CreditCard} label="Txns" mobile />
         </div>
       </div>
     </>
