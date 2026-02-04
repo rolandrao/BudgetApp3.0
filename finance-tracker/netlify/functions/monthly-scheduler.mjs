@@ -1,4 +1,3 @@
-// netlify/functions/monthly-scheduler.mjs
 import { schedule } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 
@@ -7,7 +6,8 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
-const handler = async (event) => {
+// Internal function logic (renamed to avoid conflict)
+const performMonthlyTasks = async (event) => {
   const date = new Date();
   const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
@@ -38,7 +38,7 @@ const handler = async (event) => {
         amount: exp.amount,
         category: exp.category,
         paid_by: exp.paid_by,
-        is_shared: false, // Default to false, or add a column to config if needed
+        is_shared: exp.is_shared, // Ensure this column exists in your DB now
         created_at: new Date().toISOString()
       }));
 
@@ -91,5 +91,5 @@ const handler = async (event) => {
   }
 };
 
-// Cron expression: At 00:00 on day-of-month 1.
-export const scheduledFunction = schedule('0 0 1 * *', handler);
+// EXPORT MUST BE NAMED 'handler'
+export const handler = schedule('0 0 1 * *', performMonthlyTasks);
