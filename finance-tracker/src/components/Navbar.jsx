@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, CreditCard, Upload, Wallet, Moon, Sun, LogOut, PieChart, Target, Settings } from 'lucide-react';
+import { LayoutDashboard, CreditCard, Upload, Moon, Sun, LogOut, PieChart, Target, Settings } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useTheme } from "./theme-provider";
 import { supabase } from '../lib/supabase';
+import logo from '../assets/finance_logo.jpg'; // <--- IMPORT YOUR LOGO HERE
 
 // --- CONFIGURATION: UPDATE THESE EMAILS ---
 const ROLAND_EMAIL = "rolandrao@gmail.com"; 
@@ -97,18 +98,20 @@ export default function Navbar() {
         <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             
-            {/* Logo Section */}
-            <div className="flex items-center gap-2">
-              <div className="bg-gradient-to-tr from-blue-600 to-purple-600 p-2 rounded-lg text-white shadow-lg">
-                <Wallet size={24} />
-              </div>
+            {/* --- CLICKABLE LOGO SECTION --- */}
+            <Link to="/" className="flex items-center gap-3 transition-opacity hover:opacity-80">
+              <img 
+                src={logo} 
+                alt="R&S Logo" 
+                className="h-10 w-10 rounded-xl shadow-md object-cover border border-white/10" 
+              />
               <span className="font-bold text-xl tracking-tight text-foreground hidden sm:block">
                 R&S Finance
               </span>
               <span className="font-bold text-xl tracking-tight text-foreground sm:hidden">
                 R&S
               </span>
-            </div>
+            </Link>
 
             {/* Desktop Navigation (Center) */}
             <div className="hidden md:flex items-center space-x-2">

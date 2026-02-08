@@ -13,13 +13,14 @@ export default function BudgetPage() {
   const [year, setYear] = useState(new Date().getFullYear());
   const [month, setMonth] = useState("all"); 
   
-  // 1. Destructure calculatedIncome from the hook
   const { 
     loading, 
     summaryData, 
     limitsData, 
     totalsData, 
-    calculatedIncome, // <--- THIS WAS MISSING
+    calculatedIncome, 
+    transactions,
+    dbCategories, // <--- Destructure this
     refreshData 
   } = useBudget(year, month);
 
@@ -61,7 +62,9 @@ export default function BudgetPage() {
                 : <BudgetMonthlyView 
                     summaryData={summaryData} 
                     totalsData={totalsData} 
-                    calculatedIncome={calculatedIncome} // <--- PASSING IT DOWN HERE
+                    calculatedIncome={calculatedIncome} 
+                    transactions={transactions}
+                    dbCategories={dbCategories} // <--- Pass it here
                   />
          )}
       </div>
