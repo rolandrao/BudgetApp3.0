@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from './supabase'; 
-import { MONTHS, CATEGORIES } from './budget-constants';
+import { MONTHS } from './budget-constants';
 import { calculateMonthlyIncome } from './income-utils'; 
 
 export function useBudget(year, month) {
@@ -9,6 +9,8 @@ export function useBudget(year, month) {
   const [limitsData, setLimitsData] = useState([]);
   const [totalsData, setTotalsData] = useState({ Roland: 0, Sarah: 0 });
   const [calculatedIncome, setCalculatedIncome] = useState({ Roland: 0, Sarah: 0 }); 
+  const [transactions, setTransactions] = useState([]); 
+  const [dbCategories, setDbCategories] = useState([]); // <--- New State for DB Categories
 
   useEffect(() => {
     fetchData();
@@ -17,46 +19,36 @@ export function useBudget(year, month) {
   const fetchData = async () => {
     setLoading(true);
 
-    // 1. Fetch Limits & Income Settings
-    const [limitsResult, incomeResult] = await Promise.all([
+    // 1. Fetch Limits, Income Settings AND Categories
+    const [limitsResult, incomeResult, catResult] = await Promise.all([
         supabase.from('budget_limits').select(`monthly_limit, user_name, category_id, categories ( category_name )`),
-        supabase.from('income_settings').select('*')
+        supabase.from('income_settings').select('*'),
+        supabase.from('categories').select('*').order('category_name') // <--- Fetch Categories
     ]);
 
     const limits = limitsResult.data || [];
     const incomeSettings = incomeResult.data || [];
+    const categories = catResult.data || [];
+    
     setLimitsData(limits);
-
-    // --- DEBUGGING LOGS ---
-    console.log("--- BUDGET DEBUG ---");
-    console.log("Selected Month/Year:", month, year);
-    console.log("Fetched Income Settings:", incomeSettings);
-    // ----------------------
+    setDbCategories(categories); // <--- Store them
 
     // 2. Calculate Income
     if (month !== "all") {
-        const mIndex = parseInt(month); // Ensure number
-        
-        // Find settings case-insensitively just to be safe
+        const mIndex = parseInt(month);
         const rSettings = incomeSettings.find(s => s.user_name.toLowerCase() === 'roland');
         const sSettings = incomeSettings.find(s => s.user_name.toLowerCase() === 'sarah');
 
-        const rIncome = calculateMonthlyIncome(year, mIndex, rSettings);
-        const sIncome = calculateMonthlyIncome(year, mIndex, sSettings);
-
-        console.log("Calculated Roland:", rIncome);
-        console.log("Calculated Sarah:", sIncome);
-
         setCalculatedIncome({
-            Roland: rIncome,
-            Sarah: sIncome
+            Roland: calculateMonthlyIncome(year, mIndex, rSettings),
+            Sarah: calculateMonthlyIncome(year, mIndex, sSettings)
         });
     } else {
         setCalculatedIncome({ Roland: 0, Sarah: 0 });
     }
 
     // 3. Fetch Transactions
-    let query = supabase.from('transactions').select('amount, category, paid_by, transaction_date');
+    let query = supabase.from('transactions').select('amount, category, paid_by, transaction_date, description');
     
     if (month === "all") {
         query = query
@@ -71,12 +63,17 @@ export function useBudget(year, month) {
             .lte('transaction_date', endDate);
     }
 
-    const { data: transactions } = await query;
-    processData(limits, transactions || []);
+    const { data: txData } = await query;
+    const cleanTransactions = txData || [];
+    
+    setTransactions(cleanTransactions);
+    
+    // Pass the fetched categories to processData
+    processData(limits, cleanTransactions, categories);
     setLoading(false);
   };
 
-  const processData = (limits, transactions) => {
+  const processData = (limits, txList, categories) => {
     if (month === "all") {
         // --- YEARLY LOGIC ---
         const monthlyStats = Array.from({ length: 12 }, (_, i) => ({
@@ -90,7 +87,7 @@ export function useBudget(year, month) {
         const monthlyTotalLimit = limits.reduce((sum, l) => sum + (Number(l.monthly_limit) || 0), 0);
         monthlyStats.forEach(m => m.totalLimit = monthlyTotalLimit);
 
-        transactions.forEach(t => {
+        txList.forEach(t => {
             if (!t.transaction_date) return;
             const mIndex = new Date(t.transaction_date).getMonth();
             if (mIndex >= 0 && mIndex <= 11) monthlyStats[mIndex].totalSpent += Number(t.amount);
@@ -103,7 +100,7 @@ export function useBudget(year, month) {
         let totalRoland = 0;
         let totalSarah = 0;
 
-        const getSpent = (cat, person) => transactions
+        const getSpent = (cat, person) => txList
             .filter(t => t.category === cat && t.paid_by === person)
             .reduce((s, t) => s + Number(t.amount), 0);
 
@@ -112,7 +109,9 @@ export function useBudget(year, month) {
             return l ? Number(l.monthly_limit) : 0;
         };
 
-        CATEGORIES.forEach(cat => {
+        // Use the DB Categories, not the static list
+        categories.forEach(c => {
+            const cat = c.category_name;
             ['Roland', 'Sarah'].forEach(person => {
                 const limit = getLimit(cat, person);
                 const spent = getSpent(cat, person);
@@ -120,17 +119,16 @@ export function useBudget(year, month) {
                 if (person === 'Roland') totalRoland += spent;
                 else totalSarah += spent;
 
-                if (limit > 0 || spent > 0) {
-                    rows.push({
-                        id: `${cat}-${person}`,
-                        category: cat,
-                        person,
-                        limit,
-                        spent,
-                        remaining: limit - spent,
-                        status: spent > limit ? 'Over' : 'Under'
-                    });
-                }
+                // Push row if it exists in DB (which it does, because we are iterating DB categories)
+                rows.push({
+                    id: `${cat}-${person}`,
+                    category: cat,
+                    person,
+                    limit,
+                    spent,
+                    remaining: limit - spent,
+                    status: spent > limit ? 'Over' : 'Under'
+                });
             });
         });
 
@@ -139,5 +137,5 @@ export function useBudget(year, month) {
     }
   };
 
-  return { loading, summaryData, limitsData, totalsData, calculatedIncome, refreshData: fetchData };
+  return { loading, summaryData, limitsData, totalsData, calculatedIncome, transactions, dbCategories, refreshData: fetchData };
 }

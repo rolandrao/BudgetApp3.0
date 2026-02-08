@@ -6,81 +6,129 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
-// Internal function logic (renamed to avoid conflict)
 const performMonthlyTasks = async (event) => {
-  const date = new Date();
-  const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-  console.log(`[Automation] Starting job for ${monthKey}...`);
+  // Calculate "Last Month"
+  const lastMonthDate = new Date();
+  lastMonthDate.setMonth(now.getMonth() - 1);
+  const lastMonthYear = lastMonthDate.getFullYear();
+  const lastMonthIndex = lastMonthDate.getMonth(); 
+  
+  const startOfLastMonth = new Date(lastMonthYear, lastMonthIndex, 1).toISOString().split('T')[0];
+  const endOfLastMonth = new Date(lastMonthYear, lastMonthIndex + 1, 0).toISOString().split('T')[0];
 
-  // 1. IDEMPOTENCY CHECK: Did we already run this month?
+  console.log(`[Automation] Starting job for ${currentMonthKey}...`);
+
+  // 1. IDEMPOTENCY CHECK
   const { data: existingLogs } = await supabase
     .from('automation_logs')
     .select('*')
-    .eq('run_month', monthKey);
+    .eq('run_month', currentMonthKey);
 
   if (existingLogs && existingLogs.length > 0) {
-    console.log(`[Automation] Job already ran for ${monthKey}. Skipping.`);
+    console.log(`[Automation] Job already ran for ${currentMonthKey}. Skipping.`);
     return { statusCode: 200 };
   }
 
   try {
-    // --- TASK A: PROCESS RECURRING EXPENSES ---
-    const { data: expenses } = await supabase
-      .from('recurring_expenses')
-      .select('*')
-      .eq('active', true);
-
+    // --- TASK A: RECURRING EXPENSES ---
+    const { data: expenses } = await supabase.from('recurring_expenses').select('*').eq('active', true);
     if (expenses && expenses.length > 0) {
       const transactions = expenses.map(exp => ({
-        transaction_date: new Date().toISOString().split('T')[0], // Today
+        transaction_date: new Date().toISOString().split('T')[0],
         description: exp.description,
         amount: exp.amount,
         category: exp.category,
         paid_by: exp.paid_by,
-        is_shared: exp.is_shared, // Ensure this column exists in your DB now
-        created_at: new Date().toISOString()
+        is_shared: exp.is_shared,
       }));
-
-      const { error: txError } = await supabase.from('transactions').insert(transactions);
-      if (txError) throw txError;
-      console.log(`[Automation] Added ${transactions.length} transactions.`);
+      await supabase.from('transactions').insert(transactions);
     }
 
-    // --- TASK B: PROCESS SAVINGS GOALS ---
-    const { data: allocations } = await supabase
-      .from('recurring_allocations')
-      .select('*');
-
+    // --- TASK B: RECURRING SAVINGS ---
+    const { data: allocations } = await supabase.from('recurring_allocations').select('*');
     if (allocations && allocations.length > 0) {
-      // Group by Goal ID to minimize updates
       const updates = {};
+      const getMonthlyEquivalent = (amount, freq) => {
+          const f = (freq || 'monthly').toLowerCase();
+          if (f === 'weekly') return amount * 4.33;     
+          if (f === 'bi-weekly') return amount * 2.165; 
+          return amount; 
+      };
+
       allocations.forEach(alloc => {
         if (alloc.savings_goal_id) {
-          updates[alloc.savings_goal_id] = (updates[alloc.savings_goal_id] || 0) + alloc.amount;
+          const monthlyVal = getMonthlyEquivalent(alloc.amount, alloc.frequency);
+          updates[alloc.savings_goal_id] = (updates[alloc.savings_goal_id] || 0) + monthlyVal;
         }
       });
 
-      // Fetch current goals to add to them
       const { data: goals } = await supabase.from('savings_goals').select('*');
-      
       for (const [goalId, amountToAdd] of Object.entries(updates)) {
         const goal = goals.find(g => g.id === parseInt(goalId));
         if (goal) {
-          await supabase
-            .from('savings_goals')
-            .update({ current_amount: goal.current_amount + amountToAdd })
-            .eq('id', parseInt(goalId));
+          await supabase.from('savings_goals').update({ current_amount: goal.current_amount + amountToAdd }).eq('id', parseInt(goalId));
         }
       }
-      console.log(`[Automation] Updated ${Object.keys(updates).length} savings goals.`);
+    }
+
+    // --- TASK C: BUDGET ROLLOVERS (Surplus OR Deficit) ---
+    const { data: rolloverGoals } = await supabase
+      .from('savings_goals')
+      .select('*')
+      .not('linked_category', 'is', null);
+
+    if (rolloverGoals && rolloverGoals.length > 0) {
+      // Fetch Limits & Transactions
+      const { data: limitsWithCats } = await supabase.from('budget_limits').select('monthly_limit, categories(category_name)');
+      
+      const { data: txs } = await supabase
+        .from('transactions')
+        .select('amount, category')
+        .gte('transaction_date', startOfLastMonth)
+        .lte('transaction_date', endOfLastMonth);
+
+      for (const goal of rolloverGoals) {
+        const category = goal.linked_category;
+        
+        // 1. Calc Spent
+        const spent = txs
+          .filter(t => t.category === category)
+          .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+
+        // 2. Calc Limit
+        const totalLimit = limitsWithCats
+          .filter(l => l.categories?.category_name === category)
+          .reduce((sum, l) => sum + parseFloat(l.monthly_limit), 0);
+
+        // 3. Calc Remainder (Positive = Surplus, Negative = Overspending)
+        const remainder = totalLimit - spent;
+
+        if (remainder !== 0) {
+          // Calculate new amount
+          let newAmount = goal.current_amount + remainder;
+          
+          // Safety: Don't let goal drop below $0
+          if (newAmount < 0) newAmount = 0;
+
+          const action = remainder > 0 ? "Rolling over surplus" : "Covering deficit";
+          console.log(`[Automation] ${action}: ${remainder.toFixed(2)} for ${category} -> ${goal.name}`);
+
+          await supabase
+            .from('savings_goals')
+            .update({ current_amount: newAmount })
+            .eq('id', goal.id);
+        }
+      }
     }
 
     // 2. LOG SUCCESS
     await supabase.from('automation_logs').insert({
-      run_month: monthKey,
+      run_month: currentMonthKey,
       status: 'success',
-      details: `Processed ${expenses?.length || 0} expenses and savings.`
+      details: `Processed bills, savings, and budget rollovers.`
     });
 
     return { statusCode: 200 };
@@ -91,5 +139,4 @@ const performMonthlyTasks = async (event) => {
   }
 };
 
-// EXPORT MUST BE NAMED 'handler'
-export const handler = schedule('0 0 1 * *', performMonthlyTasks);
+export const handler = schedule('0 5 1 * *', performMonthlyTasks);
