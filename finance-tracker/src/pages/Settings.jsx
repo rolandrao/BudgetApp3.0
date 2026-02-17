@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Trash2, Plus, Loader2, DollarSign, Calendar, Pencil, Check, X, Users, User } from 'lucide-react';
+import { Trash2, Plus, Loader2, DollarSign, Calendar, Pencil, Check, X, Users, User, Clock } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox"; // <--- Import Checkbox
+import { Checkbox } from "@/components/ui/checkbox";
 
 // --- SUB-COMPONENT: Editable Allocation Row (Savings) ---
 const AllocationRow = ({ alloc, goals, onDelete, onUpdate }) => {
@@ -16,6 +16,7 @@ const AllocationRow = ({ alloc, goals, onDelete, onUpdate }) => {
     const [editValues, setEditValues] = useState({
         user_name: alloc.user_name,
         amount: alloc.amount,
+        frequency: alloc.frequency || 'monthly', // Default to monthly
         savings_goal_id: alloc.savings_goal_id ? alloc.savings_goal_id.toString() : 'none'
     });
 
@@ -23,6 +24,7 @@ const AllocationRow = ({ alloc, goals, onDelete, onUpdate }) => {
         await onUpdate(alloc.id, {
             user_name: editValues.user_name,
             amount: parseFloat(editValues.amount),
+            frequency: editValues.frequency,
             savings_goal_id: editValues.savings_goal_id === 'none' ? null : parseInt(editValues.savings_goal_id)
         });
         setIsEditing(false);
@@ -35,10 +37,22 @@ const AllocationRow = ({ alloc, goals, onDelete, onUpdate }) => {
                     <SelectTrigger className="w-[100px] h-8"><SelectValue /></SelectTrigger>
                     <SelectContent><SelectItem value="Roland">Roland</SelectItem><SelectItem value="Sarah">Sarah</SelectItem></SelectContent>
                 </Select>
-                <div className="relative w-[100px]">
+                
+                <div className="relative w-[90px]">
                     <span className="absolute left-2 top-1.5 text-xs text-muted-foreground">$</span>
                     <Input type="number" className="pl-4 h-8" value={editValues.amount} onChange={(e) => setEditValues({ ...editValues, amount: e.target.value })} />
                 </div>
+
+                {/* Frequency Dropdown */}
+                <Select value={editValues.frequency} onValueChange={(v) => setEditValues({ ...editValues, frequency: v })}>
+                    <SelectTrigger className="w-[110px] h-8"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                        <SelectItem value="bi-weekly">Bi-Weekly</SelectItem>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                    </SelectContent>
+                </Select>
+
                 <Select value={editValues.savings_goal_id} onValueChange={(v) => setEditValues({ ...editValues, savings_goal_id: v })}>
                     <SelectTrigger className="flex-1 h-8"><SelectValue placeholder="Goal" /></SelectTrigger>
                     <SelectContent>
@@ -57,7 +71,10 @@ const AllocationRow = ({ alloc, goals, onDelete, onUpdate }) => {
     return (
         <div className="flex items-center justify-between p-3 border rounded-lg bg-card">
             <div className="flex flex-col">
-                <span className="font-medium">{alloc.user_name} saves ${alloc.amount}</span>
+                <span className="font-medium flex items-center gap-2">
+                    {alloc.user_name} saves ${alloc.amount}
+                    <Badge variant="secondary" className="text-[10px] h-5 font-normal px-1.5 capitalize">{alloc.frequency || 'monthly'}</Badge>
+                </span>
                 <span className="text-xs text-muted-foreground">Target: {alloc.savings_goals?.name || 'General'}</span>
             </div>
             <div className="flex gap-1">
@@ -76,7 +93,7 @@ const ExpenseRow = ({ exp, categories, onDelete, onUpdate }) => {
         amount: exp.amount,
         category: exp.category,
         paid_by: exp.paid_by,
-        is_shared: exp.is_shared // <--- Added
+        is_shared: exp.is_shared
     });
 
     const handleSave = async () => {
@@ -85,7 +102,7 @@ const ExpenseRow = ({ exp, categories, onDelete, onUpdate }) => {
             amount: parseFloat(editValues.amount),
             category: editValues.category,
             paid_by: editValues.paid_by,
-            is_shared: editValues.is_shared // <--- Added
+            is_shared: editValues.is_shared
         });
         setIsEditing(false);
     };
@@ -107,13 +124,8 @@ const ExpenseRow = ({ exp, categories, onDelete, onUpdate }) => {
                     <SelectContent><SelectItem value="Roland">Roland</SelectItem><SelectItem value="Sarah">Sarah</SelectItem></SelectContent>
                 </Select>
 
-                {/* Edit Checkbox */}
                 <div className="flex items-center space-x-2 bg-background px-2 h-8 rounded border">
-                    <Checkbox 
-                        id={`edit-shared-${exp.id}`} 
-                        checked={editValues.is_shared} 
-                        onCheckedChange={(c) => setEditValues({...editValues, is_shared: c})} 
-                    />
+                    <Checkbox id={`edit-shared-${exp.id}`} checked={editValues.is_shared} onCheckedChange={(c) => setEditValues({...editValues, is_shared: c})} />
                     <Label htmlFor={`edit-shared-${exp.id}`} className="text-xs cursor-pointer">Shared?</Label>
                 </div>
 
@@ -135,7 +147,6 @@ const ExpenseRow = ({ exp, categories, onDelete, onUpdate }) => {
             <div className="flex flex-col">
                 <div className="flex items-center gap-2">
                     <span className="font-medium">{exp.description}</span>
-                    {/* Shared Badge */}
                     {exp.is_shared ? (
                         <Badge variant="secondary" className="h-5 text-[10px] gap-1 px-1.5"><Users className="h-3 w-3" /> Shared</Badge>
                     ) : (
@@ -150,12 +161,8 @@ const ExpenseRow = ({ exp, categories, onDelete, onUpdate }) => {
             <div className="flex items-center gap-3">
                 <span className="font-bold text-sm sm:text-base">${exp.amount}</span>
                 <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => setIsEditing(true)}>
-                        <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => onDelete(exp.id)}>
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => setIsEditing(true)}><Pencil className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => onDelete(exp.id)}><Trash2 className="h-4 w-4" /></Button>
                 </div>
             </div>
         </div>
@@ -174,8 +181,8 @@ export default function SettingsPage() {
 
     // Form States
     const [newCategory, setNewCategory] = useState('');
-    const [newAllocation, setNewAllocation] = useState({ user: 'Roland', amount: '', goal_id: 'none' });
-    const [newExpense, setNewExpense] = useState({ description: '', amount: '', category: '', paid_by: 'Roland', is_shared: true }); // <--- Default Shared
+    const [newAllocation, setNewAllocation] = useState({ user: 'Roland', amount: '', frequency: 'monthly', goal_id: 'none' });
+    const [newExpense, setNewExpense] = useState({ description: '', amount: '', category: '', paid_by: 'Roland', is_shared: true });
 
     useEffect(() => { fetchAllData(); }, []);
 
@@ -201,7 +208,7 @@ export default function SettingsPage() {
         setLoading(false);
     }
 
-    // --- CATEGORY HANDLERS ---
+    // --- HANDLERS (Generic) ---
     const addCategory = async () => {
         if (!newCategory) return;
         await supabase.from('categories').insert([{ category_name: newCategory }]);
@@ -212,8 +219,6 @@ export default function SettingsPage() {
         await supabase.from('categories').delete().eq('category_id', id);
         fetchAllData();
     };
-
-    // --- INCOME HANDLERS ---
     const saveIncome = async (user, field, value) => {
         const updates = { ...incomeSettings[user], user_name: user, [field]: value };
         setIncomeSettings(prev => ({ ...prev, [user]: updates }));
@@ -226,10 +231,10 @@ export default function SettingsPage() {
         await supabase.from('recurring_allocations').insert([{
             user_name: newAllocation.user,
             amount: parseFloat(newAllocation.amount),
-            savings_goal_id: newAllocation.goal_id === 'none' ? null : parseInt(newAllocation.goal_id),
-            frequency: 'monthly'
+            frequency: newAllocation.frequency, // <--- Sent to DB
+            savings_goal_id: newAllocation.goal_id === 'none' ? null : parseInt(newAllocation.goal_id)
         }]);
-        setNewAllocation({ user: 'Roland', amount: '', goal_id: 'none' });
+        setNewAllocation({ user: 'Roland', amount: '', frequency: 'monthly', goal_id: 'none' });
         fetchAllData();
     };
     const updateAllocation = async (id, updates) => {
@@ -248,19 +253,15 @@ export default function SettingsPage() {
             alert("Please fill in Description, Amount and Category");
             return;
         }
-        const { error } = await supabase.from('recurring_expenses').insert([{
+        await supabase.from('recurring_expenses').insert([{
             description: newExpense.description,
             amount: parseFloat(newExpense.amount),
             category: newExpense.category,
             paid_by: newExpense.paid_by,
-            is_shared: newExpense.is_shared // <--- Added
+            is_shared: newExpense.is_shared
         }]);
-        
-        if (error) alert(error.message);
-        else {
-            setNewExpense({ description: '', amount: '', category: '', paid_by: 'Roland', is_shared: true });
-            fetchAllData();
-        }
+        setNewExpense({ description: '', amount: '', category: '', paid_by: 'Roland', is_shared: true });
+        fetchAllData();
     };
     const updateExpense = async (id, updates) => {
         await supabase.from('recurring_expenses').update(updates).eq('id', id);
@@ -295,74 +296,38 @@ export default function SettingsPage() {
                             <CardDescription>These are automatically added to "Transactions" on the 1st of every month.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            {/* LIST */}
                             <div className="space-y-2">
                                 {loading ? <Loader2 className="animate-spin" /> : expenses.map(exp => (
-                                    <ExpenseRow 
-                                        key={exp.id} 
-                                        exp={exp} 
-                                        categories={categories}
-                                        onDelete={deleteExpense}
-                                        onUpdate={updateExpense}
-                                    />
+                                    <ExpenseRow key={exp.id} exp={exp} categories={categories} onDelete={deleteExpense} onUpdate={updateExpense} />
                                 ))}
                                 {!loading && expenses.length === 0 && <p className="text-sm text-muted-foreground italic">No recurring expenses set.</p>}
                             </div>
 
-                            {/* ADD NEW */}
                             <div className="border-t pt-6 grid gap-4">
                                 <Label className="text-base font-semibold">Add New Recurring Expense</Label>
                                 <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
-                                    {/* Description */}
-                                    <div className="md:col-span-3">
-                                        <Input 
-                                            placeholder="Description (e.g. Rent)" 
-                                            value={newExpense.description} 
-                                            onChange={e => setNewExpense({...newExpense, description: e.target.value})} 
-                                        />
-                                    </div>
-                                    
-                                    {/* Category */}
+                                    <div className="md:col-span-3"><Input placeholder="Description (e.g. Rent)" value={newExpense.description} onChange={e => setNewExpense({...newExpense, description: e.target.value})} /></div>
                                     <div className="md:col-span-3">
                                         <Select value={newExpense.category} onValueChange={v => setNewExpense({...newExpense, category: v})}>
                                             <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
-                                            <SelectContent>
-                                                {categories.map(c => <SelectItem key={c.category_id} value={c.category_name}>{c.category_name}</SelectItem>)}
-                                            </SelectContent>
+                                            <SelectContent>{categories.map(c => <SelectItem key={c.category_id} value={c.category_name}>{c.category_name}</SelectItem>)}</SelectContent>
                                         </Select>
                                     </div>
-
-                                    {/* Payer */}
                                     <div className="md:col-span-2">
                                         <Select value={newExpense.paid_by} onValueChange={v => setNewExpense({...newExpense, paid_by: v})}>
                                             <SelectTrigger><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="Roland">Roland</SelectItem>
-                                                <SelectItem value="Sarah">Sarah</SelectItem>
-                                            </SelectContent>
+                                            <SelectContent><SelectItem value="Roland">Roland</SelectItem><SelectItem value="Sarah">Sarah</SelectItem></SelectContent>
                                         </Select>
                                     </div>
-
-                                    {/* Shared Checkbox (New) */}
                                     <div className="md:col-span-2 flex items-center space-x-2 bg-muted/30 rounded-md border px-2 h-10">
-                                        <Checkbox 
-                                            id="new-shared" 
-                                            checked={newExpense.is_shared} 
-                                            onCheckedChange={(c) => setNewExpense({...newExpense, is_shared: c})} 
-                                        />
+                                        <Checkbox id="new-shared" checked={newExpense.is_shared} onCheckedChange={(c) => setNewExpense({...newExpense, is_shared: c})} />
                                         <Label htmlFor="new-shared" className="text-sm cursor-pointer font-normal">Shared</Label>
                                     </div>
-
-                                    {/* Amount */}
                                     <div className="md:col-span-1 relative">
                                         <span className="absolute left-1 top-2.5 text-xs text-muted-foreground">$</span>
                                         <Input type="number" className="pl-3 px-1 text-center" placeholder="0" value={newExpense.amount} onChange={e => setNewExpense({...newExpense, amount: e.target.value})} />
                                     </div>
-
-                                    {/* Button */}
-                                    <div className="md:col-span-1">
-                                        <Button className="w-full" onClick={addExpense}><Plus className="h-4 w-4" /></Button>
-                                    </div>
+                                    <div className="md:col-span-1"><Button className="w-full" onClick={addExpense}><Plus className="h-4 w-4" /></Button></div>
                                 </div>
                             </div>
                         </CardContent>
@@ -374,40 +339,47 @@ export default function SettingsPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle>Recurring Transfers</CardTitle>
-                            <CardDescription>Money added to your Savings Goals automatically on the 1st.</CardDescription>
+                            <CardDescription>Money added to your Savings Goals automatically.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div className="space-y-2">
                                 {allocations.map(alloc => (
-                                    <AllocationRow 
-                                        key={alloc.id} 
-                                        alloc={alloc} 
-                                        goals={goals} 
-                                        onDelete={deleteAllocation}
-                                        onUpdate={updateAllocation}
-                                    />
+                                    <AllocationRow key={alloc.id} alloc={alloc} goals={goals} onDelete={deleteAllocation} onUpdate={updateAllocation} />
                                 ))}
                             </div>
-                            <div className="border-t pt-4 flex flex-col sm:flex-row gap-3">
-                                <Select value={newAllocation.user} onValueChange={v => setNewAllocation({...newAllocation, user: v})}>
-                                    <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
-                                    <SelectContent><SelectItem value="Roland">Roland</SelectItem><SelectItem value="Sarah">Sarah</SelectItem></SelectContent>
-                                </Select>
-                                <Input type="number" placeholder="Amount" className="w-[100px]" value={newAllocation.amount} onChange={e => setNewAllocation({...newAllocation, amount: e.target.value})} />
-                                <Select value={newAllocation.goal_id} onValueChange={v => setNewAllocation({...newAllocation, goal_id: v})}>
-                                    <SelectTrigger className="flex-1"><SelectValue placeholder="Select Goal" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="none">General Savings</SelectItem>
-                                        {goals.map(g => <SelectItem key={g.id} value={g.id.toString()}>{g.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                                <Button onClick={addAllocation}><Plus className="h-4 w-4" /> Add</Button>
+                            <div className="border-t pt-4 grid gap-4">
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    <Select value={newAllocation.user} onValueChange={v => setNewAllocation({...newAllocation, user: v})}>
+                                        <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+                                        <SelectContent><SelectItem value="Roland">Roland</SelectItem><SelectItem value="Sarah">Sarah</SelectItem></SelectContent>
+                                    </Select>
+                                    <Input type="number" placeholder="Amount" className="w-[100px]" value={newAllocation.amount} onChange={e => setNewAllocation({...newAllocation, amount: e.target.value})} />
+                                    
+                                    {/* New Frequency Dropdown */}
+                                    <Select value={newAllocation.frequency} onValueChange={v => setNewAllocation({...newAllocation, frequency: v})}>
+                                        <SelectTrigger className="w-[120px]"><SelectValue placeholder="Freq" /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="weekly">Weekly</SelectItem>
+                                            <SelectItem value="bi-weekly">Bi-Weekly</SelectItem>
+                                            <SelectItem value="monthly">Monthly</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+
+                                    <Select value={newAllocation.goal_id} onValueChange={v => setNewAllocation({...newAllocation, goal_id: v})}>
+                                        <SelectTrigger className="flex-1"><SelectValue placeholder="Select Goal" /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">General Savings</SelectItem>
+                                            {goals.map(g => <SelectItem key={g.id} value={g.id.toString()}>{g.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                    <Button onClick={addAllocation}><Plus className="h-4 w-4" /> Add</Button>
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
-
-                {/* --- TAB 3: INCOME RULES --- */}
+                
+                {/* ... Income Tab ... */}
                 <TabsContent value="income" className="space-y-4 mt-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {['Roland', 'Sarah'].map(person => (
@@ -428,7 +400,7 @@ export default function SettingsPage() {
                     </div>
                 </TabsContent>
 
-                {/* --- TAB 4: CATEGORIES --- */}
+                {/* ... Categories Tab ... */}
                 <TabsContent value="categories" className="space-y-4 mt-4">
                     <Card>
                         <CardHeader><CardTitle>Categories</CardTitle></CardHeader>

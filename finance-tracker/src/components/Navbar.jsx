@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, CreditCard, Upload, Wallet, Moon, Sun, LogOut, PieChart, Target, Settings } from 'lucide-react';
+import { LayoutDashboard, CreditCard, Upload, Moon, Sun, LogOut, PieChart, Target, Settings } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useTheme } from "./theme-provider";
 import { supabase } from '../lib/supabase';
+import logo from '../assets/finance_logo.jpg'; // <--- IMPORT YOUR LOGO HERE
 
 // --- CONFIGURATION: UPDATE THESE EMAILS ---
 const ROLAND_EMAIL = "rolandrao@gmail.com"; 
