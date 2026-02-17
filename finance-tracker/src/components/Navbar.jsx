@@ -98,17 +98,15 @@ export default function Navbar() {
           <div className="flex justify-between h-16">
             
             {/* Logo Section */}
-            <div className="flex items-center gap-2">
-              <div className="bg-gradient-to-tr from-blue-600 to-purple-600 p-2 rounded-lg text-white shadow-lg">
-                <Wallet size={24} />
+            <Link to="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
+              <div className="bg-white dark:bg-zinc-800 p-1.5 rounded-lg shadow-sm border border-border">
+                <img 
+                  src="/finance-app-logo.png" 
+                  alt="R&S Finance Logo" 
+                  className="h-8 w-8 object-contain"
+                />
               </div>
-              <span className="font-bold text-xl tracking-tight text-foreground hidden sm:block">
-                R&S Finance
-              </span>
-              <span className="font-bold text-xl tracking-tight text-foreground sm:hidden">
-                R&S
-              </span>
-            </div>
+            </Link>
 
             {/* Desktop Navigation (Center) */}
             <div className="hidden md:flex items-center space-x-2">
@@ -121,8 +119,7 @@ export default function Navbar() {
 
             {/* Right Section: Settings + Theme + Sign Out */}
             <div className="flex items-center gap-1 pl-2 sm:border-l border-border ml-2">
-               
-               {/* NEW: Settings Link (Visible on Mobile & Desktop) */}
+                
                <Link to="/settings">
                  <Button variant="ghost" size="icon" className="rounded-full hover:bg-muted text-muted-foreground">
                     <Settings className="h-[1.2rem] w-[1.2rem]" />
@@ -131,7 +128,6 @@ export default function Navbar() {
 
                <ThemeToggle />
                
-               {/* Mobile Sign Out (Icon Only) */}
                <Button 
                  variant="ghost" 
                  size="icon" 
@@ -141,7 +137,6 @@ export default function Navbar() {
                  <LogOut className="h-[1.2rem] w-[1.2rem]" />
                </Button>
 
-               {/* Desktop Sign Out (Text Button) */}
                <Button 
                  variant="ghost" 
                  className="hidden sm:flex text-xs text-muted-foreground hover:text-destructive"
@@ -150,27 +145,24 @@ export default function Navbar() {
                  Sign Out
                </Button>
 
-               {/* Desktop Avatars */}
                <div className="hidden sm:flex gap-2 ml-2 items-center">
-                 {/* Roland Badge */}
                  <div className={`
                     h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300
                     ${isRoland 
                         ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 ring-2 ring-blue-500 shadow-md scale-110' 
                         : 'bg-muted text-muted-foreground opacity-40 grayscale'
                     }
-                 `}>
+                  `}>
                     R
                  </div>
 
-                 {/* Sarah Badge */}
                  <div className={`
                     h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300
                     ${isSarah 
                         ? 'bg-pink-100 dark:bg-pink-900 text-pink-700 dark:text-pink-300 ring-2 ring-pink-500 shadow-md scale-110' 
                         : 'bg-muted text-muted-foreground opacity-40 grayscale'
                     }
-                 `}>
+                  `}>
                     S
                  </div>
                </div>
@@ -181,7 +173,6 @@ export default function Navbar() {
       </nav>
 
       {/* --- MOBILE BOTTOM FLOATING NAVBAR --- */}
-      {/* Kept clean with only the 4 most frequent actions */}
       <div className="fixed bottom-6 left-4 right-4 md:hidden z-50">
         <div className="
           flex items-center justify-around h-16 px-2
