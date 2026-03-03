@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const TransactionFilters = memo(({ onFilterChange, uniqueCategories }) => {
+const TransactionFilters = memo(({ onFilterChange, dbCategories = [] }) => {
     // Local state for immediate UI updates
     const [localFilters, setLocalFilters] = useState({
         search: '',
@@ -77,8 +77,11 @@ const TransactionFilters = memo(({ onFilterChange, uniqueCategories }) => {
                         <SelectTrigger className="bg-background"><SelectValue placeholder="All" /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="All">All Categories</SelectItem>
-                            {uniqueCategories.map(cat => (
-                                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                            {/* Dynamically map the categories fetched from Supabase */}
+                            {dbCategories.map(cat => (
+                                <SelectItem key={cat.category_id} value={cat.category_name}>
+                                    {cat.category_name}
+                                </SelectItem>
                             ))}
                         </SelectContent>
                     </Select>

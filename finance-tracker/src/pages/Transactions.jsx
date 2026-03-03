@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 import { useTransactions } from '@/lib/useTransactions'; 
 
 // Icons & UI
@@ -15,13 +16,27 @@ import PaginationControls from '@/components/transactions/PaginationControls';
 
 export default function Transactions() {
   const [showFilters, setShowFilters] = useState(false);
+  const [dbCategories, setDbCategories] = useState([]);
   
-  // Destructure Logic from Hook
+  // Destructure Logic from Hook (Removed uniqueCategories since we fetch from DB now)
   const {
     loading, paginatedData, totalPages, currentPage, setCurrentPage,
-    sortConfig, handleSort, filters, setFilters, uniqueCategories, filteredTotal,
+    sortConfig, handleSort, filters, setFilters, filteredTotal,
     addTransaction, addBulkTransactions, updateTransaction, deleteTransaction
   } = useTransactions();
+
+  // Fetch Database Categories
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const { data } = await supabase
+        .from('categories')
+        .select('*')
+        .order('category_name');
+      if (data) setDbCategories(data);
+    };
+    
+    fetchCategories();
+  }, []);
 
   // Helper for Sort Icons
   const SortIcon = ({ column }) => {
@@ -59,7 +74,7 @@ export default function Transactions() {
         {showFilters && (
             <TransactionFilters 
                 onFilterChange={setFilters} 
-                uniqueCategories={uniqueCategories} 
+                dbCategories={dbCategories} 
             />
         )}
       </div>
