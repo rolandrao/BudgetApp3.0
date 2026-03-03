@@ -11,12 +11,14 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 
 // --- SUB-COMPONENT: Editable Allocation Row (Savings) ---
-const AllocationRow = ({ alloc, goals, onDelete, onUpdate }) => {
+// *UPDATED to include Category prop*
+const AllocationRow = ({ alloc, goals, categories, onDelete, onUpdate }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editValues, setEditValues] = useState({
         user_name: alloc.user_name,
         amount: alloc.amount,
-        frequency: alloc.frequency || 'monthly', // Default to monthly
+        frequency: alloc.frequency || 'monthly', 
+        category: alloc.category || 'Savings', // Add category state
         savings_goal_id: alloc.savings_goal_id ? alloc.savings_goal_id.toString() : 'none'
     });
 
@@ -25,6 +27,7 @@ const AllocationRow = ({ alloc, goals, onDelete, onUpdate }) => {
             user_name: editValues.user_name,
             amount: parseFloat(editValues.amount),
             frequency: editValues.frequency,
+            category: editValues.category,
             savings_goal_id: editValues.savings_goal_id === 'none' ? null : parseInt(editValues.savings_goal_id)
         });
         setIsEditing(false);
@@ -32,7 +35,7 @@ const AllocationRow = ({ alloc, goals, onDelete, onUpdate }) => {
 
     if (isEditing) {
         return (
-            <div className="flex flex-col sm:flex-row items-center gap-2 p-2 border rounded-lg bg-muted/20 animate-in fade-in">
+            <div className="flex flex-col sm:flex-row items-center gap-2 p-2 border rounded-lg bg-muted/20 animate-in fade-in flex-wrap">
                 <Select value={editValues.user_name} onValueChange={(v) => setEditValues({ ...editValues, user_name: v })}>
                     <SelectTrigger className="w-[100px] h-8"><SelectValue /></SelectTrigger>
                     <SelectContent><SelectItem value="Roland">Roland</SelectItem><SelectItem value="Sarah">Sarah</SelectItem></SelectContent>
@@ -43,7 +46,6 @@ const AllocationRow = ({ alloc, goals, onDelete, onUpdate }) => {
                     <Input type="number" className="pl-4 h-8" value={editValues.amount} onChange={(e) => setEditValues({ ...editValues, amount: e.target.value })} />
                 </div>
 
-                {/* Frequency Dropdown */}
                 <Select value={editValues.frequency} onValueChange={(v) => setEditValues({ ...editValues, frequency: v })}>
                     <SelectTrigger className="w-[110px] h-8"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -53,14 +55,23 @@ const AllocationRow = ({ alloc, goals, onDelete, onUpdate }) => {
                     </SelectContent>
                 </Select>
 
+                {/* NEW: Category Dropdown */}
+                <Select value={editValues.category} onValueChange={(v) => setEditValues({ ...editValues, category: v })}>
+                    <SelectTrigger className="w-[120px] h-8"><SelectValue placeholder="Category" /></SelectTrigger>
+                    <SelectContent>
+                        {categories.map(c => <SelectItem key={c.category_id} value={c.category_name}>{c.category_name}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+
                 <Select value={editValues.savings_goal_id} onValueChange={(v) => setEditValues({ ...editValues, savings_goal_id: v })}>
-                    <SelectTrigger className="flex-1 h-8"><SelectValue placeholder="Goal" /></SelectTrigger>
+                    <SelectTrigger className="flex-1 h-8 min-w-[120px]"><SelectValue placeholder="Goal" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="none">General Savings</SelectItem>
                         {goals.map(g => <SelectItem key={g.id} value={g.id.toString()}>{g.name}</SelectItem>)}
                     </SelectContent>
                 </Select>
-                <div className="flex gap-1">
+
+                <div className="flex gap-1 ml-auto">
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" onClick={handleSave}><Check className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsEditing(false)}><X className="h-4 w-4" /></Button>
                 </div>
@@ -75,7 +86,11 @@ const AllocationRow = ({ alloc, goals, onDelete, onUpdate }) => {
                     {alloc.user_name} saves ${alloc.amount}
                     <Badge variant="secondary" className="text-[10px] h-5 font-normal px-1.5 capitalize">{alloc.frequency || 'monthly'}</Badge>
                 </span>
-                <span className="text-xs text-muted-foreground">Target: {alloc.savings_goals?.name || 'General'}</span>
+                <span className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
+                    <span>Target: {alloc.savings_goals?.name || 'General'}</span>
+                    <span className="text-muted-foreground/50">•</span>
+                    <span className="text-primary/70">Category: {alloc.category || 'Savings'}</span>
+                </span>
             </div>
             <div className="flex gap-1">
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => setIsEditing(true)}><Pencil className="h-4 w-4" /></Button>
@@ -109,8 +124,8 @@ const ExpenseRow = ({ exp, categories, onDelete, onUpdate }) => {
 
     if (isEditing) {
         return (
-            <div className="flex flex-col md:flex-row items-center gap-2 p-2 border rounded-lg bg-muted/20 animate-in fade-in">
-                <Input className="flex-1 h-8" placeholder="Description" value={editValues.description} onChange={e => setEditValues({...editValues, description: e.target.value})} />
+            <div className="flex flex-col md:flex-row items-center gap-2 p-2 border rounded-lg bg-muted/20 animate-in fade-in flex-wrap">
+                <Input className="flex-1 min-w-[150px] h-8" placeholder="Description" value={editValues.description} onChange={e => setEditValues({...editValues, description: e.target.value})} />
                 
                 <Select value={editValues.category} onValueChange={v => setEditValues({...editValues, category: v})}>
                     <SelectTrigger className="w-[130px] h-8"><SelectValue /></SelectTrigger>
@@ -134,7 +149,7 @@ const ExpenseRow = ({ exp, categories, onDelete, onUpdate }) => {
                     <Input type="number" className="pl-4 h-8" value={editValues.amount} onChange={e => setEditValues({...editValues, amount: e.target.value})} />
                 </div>
 
-                <div className="flex gap-1">
+                <div className="flex gap-1 ml-auto">
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" onClick={handleSave}><Check className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsEditing(false)}><X className="h-4 w-4" /></Button>
                 </div>
@@ -181,7 +196,8 @@ export default function SettingsPage() {
 
     // Form States
     const [newCategory, setNewCategory] = useState('');
-    const [newAllocation, setNewAllocation] = useState({ user: 'Roland', amount: '', frequency: 'monthly', goal_id: 'none' });
+    // *UPDATED to include category*
+    const [newAllocation, setNewAllocation] = useState({ user: 'Roland', amount: '', frequency: 'monthly', category: 'Savings', goal_id: 'none' });
     const [newExpense, setNewExpense] = useState({ description: '', amount: '', category: '', paid_by: 'Roland', is_shared: true });
 
     useEffect(() => { fetchAllData(); }, []);
@@ -231,10 +247,11 @@ export default function SettingsPage() {
         await supabase.from('recurring_allocations').insert([{
             user_name: newAllocation.user,
             amount: parseFloat(newAllocation.amount),
-            frequency: newAllocation.frequency, // <--- Sent to DB
+            frequency: newAllocation.frequency, 
+            category: newAllocation.category, // Added category
             savings_goal_id: newAllocation.goal_id === 'none' ? null : parseInt(newAllocation.goal_id)
         }]);
-        setNewAllocation({ user: 'Roland', amount: '', frequency: 'monthly', goal_id: 'none' });
+        setNewAllocation({ user: 'Roland', amount: '', frequency: 'monthly', category: 'Savings', goal_id: 'none' });
         fetchAllData();
     };
     const updateAllocation = async (id, updates) => {
@@ -339,25 +356,26 @@ export default function SettingsPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle>Recurring Transfers</CardTitle>
-                            <CardDescription>Money added to your Savings Goals automatically.</CardDescription>
+                            <CardDescription>Money automatically tracked in your Savings Goals and budget.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div className="space-y-2">
                                 {allocations.map(alloc => (
-                                    <AllocationRow key={alloc.id} alloc={alloc} goals={goals} onDelete={deleteAllocation} onUpdate={updateAllocation} />
+                                    <AllocationRow key={alloc.id} alloc={alloc} goals={goals} categories={categories} onDelete={deleteAllocation} onUpdate={updateAllocation} />
                                 ))}
                             </div>
                             <div className="border-t pt-4 grid gap-4">
-                                <div className="flex flex-col sm:flex-row gap-3">
+                                <Label className="text-base font-semibold">Add New Auto-Save</Label>
+                                <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
                                     <Select value={newAllocation.user} onValueChange={v => setNewAllocation({...newAllocation, user: v})}>
-                                        <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+                                        <SelectTrigger className="w-full sm:w-[120px]"><SelectValue /></SelectTrigger>
                                         <SelectContent><SelectItem value="Roland">Roland</SelectItem><SelectItem value="Sarah">Sarah</SelectItem></SelectContent>
                                     </Select>
-                                    <Input type="number" placeholder="Amount" className="w-[100px]" value={newAllocation.amount} onChange={e => setNewAllocation({...newAllocation, amount: e.target.value})} />
                                     
-                                    {/* New Frequency Dropdown */}
+                                    <Input type="number" placeholder="Amount" className="w-full sm:w-[100px]" value={newAllocation.amount} onChange={e => setNewAllocation({...newAllocation, amount: e.target.value})} />
+                                    
                                     <Select value={newAllocation.frequency} onValueChange={v => setNewAllocation({...newAllocation, frequency: v})}>
-                                        <SelectTrigger className="w-[120px]"><SelectValue placeholder="Freq" /></SelectTrigger>
+                                        <SelectTrigger className="w-full sm:w-[120px]"><SelectValue placeholder="Freq" /></SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="weekly">Weekly</SelectItem>
                                             <SelectItem value="bi-weekly">Bi-Weekly</SelectItem>
@@ -365,21 +383,30 @@ export default function SettingsPage() {
                                         </SelectContent>
                                     </Select>
 
+                                    {/* NEW Category Selector */}
+                                    <Select value={newAllocation.category} onValueChange={v => setNewAllocation({...newAllocation, category: v})}>
+                                        <SelectTrigger className="w-full sm:w-[140px]"><SelectValue placeholder="Category" /></SelectTrigger>
+                                        <SelectContent>
+                                            {categories.map(c => <SelectItem key={c.category_id} value={c.category_name}>{c.category_name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+
                                     <Select value={newAllocation.goal_id} onValueChange={v => setNewAllocation({...newAllocation, goal_id: v})}>
-                                        <SelectTrigger className="flex-1"><SelectValue placeholder="Select Goal" /></SelectTrigger>
+                                        <SelectTrigger className="flex-1 min-w-[150px]"><SelectValue placeholder="Select Goal" /></SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="none">General Savings</SelectItem>
                                             {goals.map(g => <SelectItem key={g.id} value={g.id.toString()}>{g.name}</SelectItem>)}
                                         </SelectContent>
                                     </Select>
-                                    <Button onClick={addAllocation}><Plus className="h-4 w-4" /> Add</Button>
+
+                                    <Button onClick={addAllocation} className="w-full sm:w-auto"><Plus className="h-4 w-4 mr-2" /> Add</Button>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
                 
-                {/* ... Income Tab ... */}
+                {/* --- TAB 3: INCOME RULES --- */}
                 <TabsContent value="income" className="space-y-4 mt-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {['Roland', 'Sarah'].map(person => (
@@ -400,7 +427,7 @@ export default function SettingsPage() {
                     </div>
                 </TabsContent>
 
-                {/* ... Categories Tab ... */}
+                {/* --- TAB 4: CATEGORIES --- */}
                 <TabsContent value="categories" className="space-y-4 mt-4">
                     <Card>
                         <CardHeader><CardTitle>Categories</CardTitle></CardHeader>
